@@ -1,0 +1,86 @@
+/* Dark HMI theme. Loaded by hmi.app at startup based on AppConfig.theme. */
+
+QWidget {
+    background-color: #1e2228;
+    color: #e6edf3;
+    font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+    font-size: 14px;
+}
+
+#sideNav {
+    background-color: #161a1f;
+    border-right: 1px solid #2d333b;
+}
+
+QPushButton#navButton {
+    text-align: left;
+    padding: 10px 12px;
+    margin: 2px 0;
+    border: none;
+    border-radius: 6px;
+    background-color: transparent;
+    color: #c9d1d9;
+}
+
+QPushButton#navButton:hover {
+    background-color: #21262d;
+}
+
+QPushButton#navButton:checked {
+    background-color: #2d6cdf;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+#pageHeader {
+    font-size: 22px;
+    font-weight: 600;
+    padding: 16px 16px 8px 16px;
+}
+
+#valueCard {
+    background-color: #161a1f;
+    border: 1px solid #2d333b;
+    border-radius: 10px;
+    padding: 16px;
+    min-width: 180px;
+}
+
+#cardTitle {
+    color: #8b949e;
+    font-size: 13px;
+}
+
+#cardValue {
+    font-size: 36px;
+    font-weight: 700;
+    padding-top: 8px;
+}
+
+#muted {
+    color: #8b949e;
+    padding: 8px 16px;
+}
+
+QPushButton {
+    background-color: #21262d;
+    border: 1px solid #2d333b;
+    border-radius: 6px;
+    padding: 8px 14px;
+}
+
+QPushButton:hover {
+    background-color: #2d333b;
+}
+
+QListWidget, QPlainTextEdit {
+    background-color: #161a1f;
+    border: 1px solid #2d333b;
+    border-radius: 8px;
+    margin: 8px 16px;
+}
+
+QStatusBar {
+    background-color: #161a1f;
+    border-top: 1px solid #2d333b;
+}

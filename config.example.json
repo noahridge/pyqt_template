@@ -1,0 +1,14 @@
+{
+  "app_name": "HMI Template",
+  "theme": "dark",
+  "log_level": "INFO",
+  "log_dir": "logs",
+  "fullscreen": false,
+  "enable_control_demo": true,
+  "device": {
+    "name": "PLC-1",
+    "poll_interval_ms": 500,
+    "failure_rate": 0.02,
+    "reconnect_delay_ms": 2000
+  }
+}

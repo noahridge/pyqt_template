@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HMI Template — Architecture Guide</title>
+<style>
+  :root {
+    --bg: #1e2228;
+    --bg-soft: #161a1f;
+    --bg-card: #1a1f25;
+    --border: #2d333b;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #2d6cdf;
+    --green: #2ea043;
+    --amber: #e0a800;
+    --red: #d73a49;
+    --code-bg: #0f1419;
+    --mono: "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--sans); line-height: 1.65; font-size: 16px;
+  }
+  .layout { display: grid; grid-template-columns: 260px 1fr; max-width: 1280px; margin: 0 auto; }
+  nav.toc {
+    position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+    padding: 28px 18px; border-right: 1px solid var(--border); background: var(--bg-soft);
+  }
+  nav.toc h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 18px 0 8px; }
+  nav.toc a { display: block; color: #c9d1d9; text-decoration: none; padding: 4px 8px; border-radius: 6px; font-size: 14px; }
+  nav.toc a:hover { background: #21262d; color: #fff; }
+  main { padding: 40px 56px 120px; min-width: 0; }
+  h1 { font-size: 34px; margin: 0 0 6px; line-height: 1.15; }
+  h1 + .sub { color: var(--muted); font-size: 18px; margin-bottom: 28px; }
+  h2 { font-size: 26px; margin: 56px 0 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+  h3 { font-size: 19px; margin: 32px 0 10px; color: #fff; }
+  p { margin: 12px 0; }
+  a { color: #6ea8ff; }
+  code { font-family: var(--mono); font-size: .88em; background: #262c34; padding: 1px 6px; border-radius: 5px; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 16px 0; }
+  pre code { background: none; padding: 0; font-size: 13.5px; line-height: 1.6; color: #d7dde5; }
+  .k { color: #c792ea; }      /* keyword */
+  .s { color: #c3e88d; }      /* string */
+  .c { color: #5c6773; font-style: italic; } /* comment */
+  .f { color: #82aaff; }      /* function/name */
+  .d { color: #f78c6c; }      /* decorator/constant */
+  .figure { margin: 24px 0; padding: 22px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; }
+  .figure svg { width: 100%; height: auto; display: block; }
+  .figure figcaption { color: var(--muted); font-size: 13.5px; margin-top: 12px; text-align: center; }
+  .callout { border-left: 3px solid var(--accent); background: #19222e; padding: 12px 18px; border-radius: 0 8px 8px 0; margin: 18px 0; }
+  .callout.warn { border-left-color: var(--amber); background: #241f12; }
+  .callout.good { border-left-color: var(--green); background: #11231a; }
+  .callout strong { color: #fff; }
+  table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 14.5px; }
+  th, td { border: 1px solid var(--border); padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--bg-soft); color: #fff; }
+  td code { font-size: .85em; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 20px; }
+  .pill.core { background: #1f3a5f; color: #9ec5ff; }
+  .pill.opt { background: #3a2f12; color: #f3cd6b; }
+  .lead { font-size: 17px; color: #cdd5de; }
+  svg text { font-family: var(--sans); fill: var(--text); }
+  svg .lbl { font-size: 13px; }
+  svg .lbl-sm { font-size: 11px; fill: var(--muted); }
+  svg .lbl-b { font-size: 14px; font-weight: 700; }
+  footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); margin-top: 60px; padding-top: 18px; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    main { padding: 28px 20px 80px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+  <strong style="font-size:15px;">HMI Architecture Guide</strong>
+  <h2>Foundations</h2>
+  <a href="#intro">1. What &amp; why</a>
+  <a href="#problem">2. The robustness problem</a>
+  <a href="#layers">3. Layered architecture</a>
+  <a href="#dataflow">4. Runtime data flow</a>
+  <h2>Core pillars</h2>
+  <a href="#faults">5. Fault handling</a>
+  <a href="#safeslot">6. Safe slots</a>
+  <a href="#threads">7. Threading &amp; workers</a>
+  <a href="#state">8. Connection state machine</a>
+  <h2>Domain</h2>
+  <a href="#model">9. Model &amp; signal bus</a>
+  <a href="#alarms">10. Alarm engine</a>
+  <h2>Presentation</h2>
+  <a href="#views">11. Views &amp; navigation</a>
+  <a href="#mvvm">12. Optional MVVM</a>
+  <h2>Reference</h2>
+  <a href="#startup">13. Startup sequence</a>
+  <a href="#rationale">14. Rationale at a glance</a>
+  <a href="#extend">15. How to extend</a>
+</nav>
+<main>
+
+<h1 id="intro">HMI Template — Architecture Guide</h1>
+<div class="sub">A robust, scalable PyQt6 foundation for human-machine interface applications.</div>
+
+<p class="lead">This document explains <em>how</em> the template is structured and, more importantly,
+<em>why</em> each decision was made. It is aimed at HMI-style applications — industrial control
+panels, instrument front-ends, plant dashboards — that must run unattended for long periods
+without crashing, freezing, or hiding faults.</p>
+
+<p>The guiding principle throughout: <strong>a failure in one part of the UI must never take down
+the whole panel</strong>, and <strong>nothing slow may ever run on the GUI thread</strong>. Everything
+below follows from those two rules.</p>
+
+<!-- ============================================================ -->
+<h2 id="problem">2. The robustness problem</h2>
+<p>A default PyQt application has three silent ways to fail on a 24/7 panel. The template exists
+largely to close all three:</p>
+
+<div class="figure">
+<svg viewBox="0 0 820 250" role="img" aria-label="Three default PyQt failure modes">
+  <!-- three problem boxes -->
+  <g>
+    <rect x="20" y="30" width="240" height="170" rx="10" fill="#241417" stroke="var(--red)"/>
+    <text class="lbl-b" x="140" y="58" text-anchor="middle" fill="#ff9aa2">① Slot raises</text>
+    <text class="lbl" x="140" y="86" text-anchor="middle">Exception in a slot</text>
+    <text class="lbl" x="140" y="106" text-anchor="middle">→ sys.excepthook</text>
+    <text class="lbl" x="140" y="126" text-anchor="middle" fill="#ff9aa2">→ process aborts</text>
+    <text class="lbl-sm" x="140" y="160" text-anchor="middle">One bad button handler</text>
+    <text class="lbl-sm" x="140" y="176" text-anchor="middle">kills the entire HMI.</text>
+  </g>
+  <g>
+    <rect x="290" y="30" width="240" height="170" rx="10" fill="#241f12" stroke="var(--amber)"/>
+    <text class="lbl-b" x="410" y="58" text-anchor="middle" fill="#f3cd6b">② Thread raises</text>
+    <text class="lbl" x="410" y="86" text-anchor="middle">Worker-thread error</text>
+    <text class="lbl" x="410" y="106" text-anchor="middle">→ threading.excepthook</text>
+    <text class="lbl" x="410" y="126" text-anchor="middle" fill="#f3cd6b">→ printed to stderr</text>
+    <text class="lbl-sm" x="410" y="160" text-anchor="middle">Invisible on a kiosk —</text>
+    <text class="lbl-sm" x="410" y="176" text-anchor="middle">nobody reads stderr.</text>
+  </g>
+  <g>
+    <rect x="560" y="30" width="240" height="170" rx="10" fill="#241f12" stroke="var(--amber)"/>
+    <text class="lbl-b" x="680" y="58" text-anchor="middle" fill="#f3cd6b">③ Qt C++ warns</text>
+    <text class="lbl" x="680" y="86" text-anchor="middle">Qt's own messages</text>
+    <text class="lbl" x="680" y="106" text-anchor="middle">→ C++ message handler</text>
+    <text class="lbl" x="680" y="126" text-anchor="middle" fill="#f3cd6b">→ bypass Python logging</text>
+    <text class="lbl-sm" x="680" y="160" text-anchor="middle">Never reach your log file</text>
+    <text class="lbl-sm" x="680" y="176" text-anchor="middle">or fault pipeline.</text>
+  </g>
+</svg>
+<figcaption>The three default failure modes. The template installs a hook for each (§5).</figcaption>
+</div>
+
+<div class="callout"><strong>Key fact.</strong> Since PyQt 5.5, an unhandled exception inside a slot
+calls <code>sys.excepthook</code> and then <em>aborts the process</em>. This is the single most
+important reason HMI code needs the <code>@safe_slot</code> guard and a global fault hook.</div>
+
+<!-- ============================================================ -->
+<h2 id="layers">3. Layered architecture</h2>
+<p>The codebase is split into strict layers whose dependencies all point <strong>inward</strong>,
+toward a stable <code>core</code>. A layer may use the layers below it but never the layers above —
+so <code>core</code> knows nothing about views, and the domain knows nothing about widgets. This is
+what lets the same foundation host a 3-screen demo or a 50-screen plant HMI.</p>
+
+<div class="figure">
+<svg viewBox="0 0 820 430" role="img" aria-label="Layered architecture">
+  <!-- layers -->
+  <g>
+    <rect x="120" y="20" width="580" height="74" rx="10" fill="#19222e" stroke="var(--accent)"/>
+    <text class="lbl-b" x="140" y="50" fill="#9ec5ff">views/</text>
+    <text class="lbl-sm" x="140" y="72">MainWindow · Navigator · pages/ · widgets/ · (optional) viewmodels/</text>
+  </g>
+  <g>
+    <rect x="120" y="110" width="580" height="74" rx="10" fill="#11231a" stroke="var(--green)"/>
+    <text class="lbl-b" x="140" y="140" fill="#8fe0a8">alarms/ · models/</text>
+    <text class="lbl-sm" x="140" y="162">AlarmManager · TagStore · Tag — process data &amp; rules</text>
+  </g>
+  <g>
+    <rect x="120" y="200" width="580" height="74" rx="10" fill="#241f12" stroke="var(--amber)"/>
+    <text class="lbl-b" x="140" y="230" fill="#f3cd6b">services/</text>
+    <text class="lbl-sm" x="140" y="252">Service (state machine) · DeviceService — threaded I/O</text>
+  </g>
+  <g>
+    <rect x="120" y="290" width="580" height="84" rx="10" fill="#21262d" stroke="#5b6675"/>
+    <text class="lbl-b" x="140" y="320" fill="#cdd5de">core/</text>
+    <text class="lbl-sm" x="140" y="342">fault · safe_slot · worker · signals · settings · logging · exceptions</text>
+    <text class="lbl-sm" x="140" y="360">the stable foundation — depends on nothing above it</text>
+  </g>
+  <!-- inward arrow -->
+  <g stroke="#6ea8ff" stroke-width="2" fill="none" marker-end="url(#ar)">
+    <line x1="60" y1="40" x2="60" y2="350"/>
+  </g>
+  <text class="lbl-sm" x="42" y="200" text-anchor="middle" transform="rotate(-90 42 200)" fill="#6ea8ff">dependencies point inward</text>
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#6ea8ff"/>
+    </marker>
+  </defs>
+</svg>
+<figcaption>Layers depend inward. <code>app.py</code> is the one composition root that wires concrete
+services and pages together.</figcaption>
+</div>
+
+<p><strong>Why this matters:</strong> cross-layer communication never happens through direct
+references — it flows through a <code>SignalBus</code> (§9). A new page subscribes to events without
+any service knowing it exists. That decoupling is the difference between a project that scales and
+one that turns into a web of mutual imports.</p>
+
+<!-- ============================================================ -->
+<h2 id="dataflow">4. Runtime data flow</h2>
+<p>Data moves in <strong>one direction</strong>. A device reading travels device → service → tag
+store → bus → views, and operator intent travels back as explicit commands. Unidirectional flow
+makes a large UI predictable: there is exactly one place a value can change (the store) and exactly
+one way views learn about it (the bus).</p>
+
+<div class="figure">
+<svg viewBox="0 0 840 280" role="img" aria-label="Runtime data flow">
+  <defs>
+    <marker id="a2" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#6ea8ff"/>
+    </marker>
+  </defs>
+  <!-- worker thread band -->
+  <rect x="20" y="40" width="260" height="120" rx="10" fill="#241f12" stroke="var(--amber)" stroke-dasharray="5 4"/>
+  <text class="lbl-sm" x="30" y="58" fill="#f3cd6b">worker thread</text>
+  <rect x="40" y="70" width="100" height="70" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
+  <text class="lbl" x="90" y="100" text-anchor="middle">Device</text>
+  <text class="lbl-sm" x="90" y="118" text-anchor="middle">PLC / serial</text>
+  <rect x="170" y="70" width="90" height="70" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
+  <text class="lbl" x="215" y="100" text-anchor="middle">Service</text>
+  <text class="lbl-sm" x="215" y="118" text-anchor="middle">poller</text>
+
+  <!-- gui thread band -->
+  <rect x="300" y="40" width="520" height="200" rx="10" fill="#11202e" stroke="var(--accent)" stroke-dasharray="5 4"/>
+  <text class="lbl-sm" x="312" y="58" fill="#9ec5ff">GUI thread</text>
+  <rect x="320" y="80" width="110" height="60" rx="8" fill="var(--bg-soft)" stroke="var(--green)"/>
+  <text class="lbl" x="375" y="106" text-anchor="middle">TagStore</text>
+  <text class="lbl-sm" x="375" y="124" text-anchor="middle">source of truth</text>
+  <rect x="470" y="80" width="110" height="60" rx="8" fill="var(--bg-soft)" stroke="var(--accent)"/>
+  <text class="lbl" x="525" y="106" text-anchor="middle">SignalBus</text>
+  <text class="lbl-sm" x="525" y="124" text-anchor="middle">tagUpdated</text>
+  <rect x="620" y="80" width="170" height="60" rx="8" fill="var(--bg-soft)" stroke="var(--accent)"/>
+  <text class="lbl" x="705" y="106" text-anchor="middle">Views</text>
+  <text class="lbl-sm" x="705" y="124" text-anchor="middle">dashboard, control…</text>
+  <rect x="470" y="170" width="110" height="55" rx="8" fill="var(--bg-soft)" stroke="var(--green)"/>
+  <text class="lbl" x="525" y="200" text-anchor="middle">AlarmManager</text>
+
+  <!-- arrows -->
+  <g stroke="#6ea8ff" stroke-width="2" fill="none" marker-end="url(#a2)">
+    <line x1="140" y1="105" x2="168" y2="105"/>
+    <line x1="260" y1="105" x2="318" y2="105"/>
+    <line x1="430" y1="110" x2="468" y2="110"/>
+    <line x1="580" y1="110" x2="618" y2="110"/>
+    <line x1="525" y1="140" x2="525" y2="168"/>
+  </g>
+  <text class="lbl-sm" x="288" y="96" text-anchor="middle" fill="#f3cd6b">queued</text>
+  <text class="lbl-sm" x="288" y="160" text-anchor="middle" fill="#f3cd6b">signal</text>
+</svg>
+<figcaption>One-way data flow. The thread boundary is crossed exactly once, by a queued Qt signal,
+so views and the store are only ever touched on the GUI thread.</figcaption>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="faults">5. Fault handling <span class="pill core">core</span></h2>
+<p>Every unexpected error — from a slot, a Qt worker, a plain Python thread, or Qt's C++ layer — is
+converted into one immutable <code>Fault</code> object and broadcast on a single <code>FaultBus</code>.
+Because the bus is a <code>QObject</code>, a fault raised on any thread is delivered as a queued event
+on the GUI thread, where a status bar or dialog can react safely.</p>
+
+<div class="figure">
+<svg viewBox="0 0 840 300" role="img" aria-label="Fault funnel">
+  <defs>
+    <marker id="a3" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#ff9aa2"/>
+    </marker>
+  </defs>
+  <!-- sources -->
+  <g>
+    <rect x="20" y="20"  width="200" height="44" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
+    <text class="lbl" x="120" y="47" text-anchor="middle">slot exception → sys.excepthook</text>
+    <rect x="20" y="80"  width="200" height="44" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
+    <text class="lbl" x="120" y="107" text-anchor="middle">@safe_slot guard</text>
+    <rect x="20" y="140" width="200" height="44" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
+    <text class="lbl" x="120" y="167" text-anchor="middle">thread → threading.excepthook</text>
+    <rect x="20" y="200" width="200" height="44" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
+    <text class="lbl" x="120" y="227" text-anchor="middle">Qt C++ → qInstallMessageHandler</text>
+  </g>
+  <!-- bus -->
+  <rect x="330" y="95" width="170" height="80" rx="12" fill="#241417" stroke="var(--red)"/>
+  <text class="lbl-b" x="415" y="128" text-anchor="middle" fill="#ff9aa2">FaultBus</text>
+  <text class="lbl-sm" x="415" y="150" text-anchor="middle">report(Fault)</text>
+  <text class="lbl-sm" x="415" y="166" text-anchor="middle">faultRaised ↦ GUI thread</text>
+  <!-- sinks -->
+  <g>
+    <rect x="610" y="30"  width="200" height="44" rx="8" fill="var(--bg-soft)" stroke="var(--green)"/>
+    <text class="lbl" x="710" y="57" text-anchor="middle">rotating log file</text>
+    <rect x="610" y="110" width="200" height="44" rx="8" fill="var(--bg-soft)" stroke="var(--amber)"/>
+    <text class="lbl" x="710" y="137" text-anchor="middle">status-bar message</text>
+    <rect x="610" y="190" width="200" height="44" rx="8" fill="var(--bg-soft)" stroke="var(--red)"/>
+    <text class="lbl" x="710" y="217" text-anchor="middle">modal dialog (critical)</text>
+  </g>
+  <g stroke="#ff9aa2" stroke-width="2" fill="none" marker-end="url(#a3)">
+    <line x1="220" y1="42"  x2="330" y2="120"/>
+    <line x1="220" y1="102" x2="330" y2="128"/>
+    <line x1="220" y1="162" x2="330" y2="140"/>
+    <line x1="220" y1="222" x2="330" y2="150"/>
+    <line x1="500" y1="120" x2="608" y2="55"/>
+    <line x1="500" y1="135" x2="608" y2="132"/>
+    <line x1="500" y1="150" x2="608" y2="208"/>
+  </g>
+</svg>
+<figcaption>All error sources funnel into one <code>Fault</code>; severity decides the response
+(log always; status bar if recoverable; modal dialog if critical).</figcaption>
+</div>
+
+<p>Installing the hooks is a single call made before the event loop starts:</p>
+<pre><code><span class="k">def</span> <span class="f">install_fault_hooks</span>() -> <span class="k">None</span>:
+    <span class="s">"""Install all global hooks. Call once, early, before the event loop starts."""</span>
+    sys.excepthook = _python_excepthook          <span class="c"># escaped from a slot</span>
+    threading.excepthook = _threading_excepthook  <span class="c"># escaped from a thread</span>
+    _install_qt_message_handler()                 <span class="c"># Qt's own C++ messages</span></code></pre>
+
+<p>The <code>Fault</code> carries enough to decide how loud to be. An <code>AppError</code> subclass
+declares its own severity and whether it is recoverable, so the UI treats a dropped device link
+(recoverable, status bar) differently from a config error (critical, modal dialog):</p>
+<pre><code><span class="d">@dataclass(frozen=True)</span>
+<span class="k">class</span> <span class="f">Fault</span>:
+    message: str
+    severity: Severity = Severity.ERROR
+    source: str = <span class="s">"app"</span>
+    exception: BaseException | <span class="k">None</span> = <span class="k">None</span>
+    recoverable: bool = <span class="k">True</span></code></pre>
+
+<!-- ============================================================ -->
+<h2 id="safeslot">6. Safe slots <span class="pill core">core</span></h2>
+<p>The hooks in §5 are the safety net; <code>@safe_slot</code> is the everyday guard you actually
+reach for. It wraps a slot so any exception is reported through the fault system and
+<em>swallowed</em> — the event loop keeps spinning. Decorate every method you connect to a signal.</p>
+
+<pre><code><span class="k">class</span> <span class="f">Dashboard</span>(QWidget):
+    <span class="d">@safe_slot</span>
+    <span class="k">def</span> <span class="f">on_refresh_clicked</span>(self):
+        ...                       <span class="c"># may raise; the app stays alive</span>
+
+    <span class="d">@safe_slot(default=0.0, source=<span class="s">"dashboard"</span>)</span>
+    <span class="k">def</span> <span class="f">compute</span>(self) -> float:
+        ...                       <span class="c"># returns 0.0 if it raises</span></code></pre>
+
+<p>The implementation is deliberately small — a try/except that routes to <code>report_fault</code>
+and returns a default instead of propagating:</p>
+<pre><code><span class="d">@functools.wraps(fn)</span>
+<span class="k">def</span> <span class="f">wrapper</span>(*args, **kwargs):
+    <span class="k">try</span>:
+        <span class="k">return</span> fn(*args, **kwargs)
+    <span class="k">except</span> Exception <span class="k">as</span> exc:          <span class="c"># deliberate catch-all</span>
+        label = source <span class="k">or</span> _derive_source(fn, args)
+        report_fault(exc, source=label, severity=severity)
+        <span class="k">if</span> reraise:
+            <span class="k">raise</span>
+        <span class="k">return</span> default</code></pre>
+
+<div class="callout good"><strong>Why a catch-all is correct here.</strong> Catching bare
+<code>Exception</code> is normally a smell, but a slot is a boundary between Qt's C++ event loop and
+your Python code. An exception that crosses that boundary aborts the process — so catching
+everything <em>at that one boundary</em> and converting it to a fault is exactly right. Combine with
+<code>@pyqtSlot</code> (outermost) if you also want the typed C++ slot.</div>
+
+<!-- ============================================================ -->
+<h2 id="threads">7. Threading &amp; workers <span class="pill core">core</span></h2>
+<p>HMI apps spend most of their time talking to slow, unreliable things. All of that must happen off
+the GUI thread, or the UI freezes and the operator can't hit the stop button. The template uses the
+<strong>worker-object</strong> pattern Qt recommends — a <code>QObject</code> moved onto a
+<code>QThread</code> — rather than subclassing <code>QThread</code>.</p>
+
+<div class="figure">
+<svg viewBox="0 0 820 250" role="img" aria-label="Threading model">
+  <defs>
+    <marker id="a4" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#6ea8ff"/>
+    </marker>
+  </defs>
+  <rect x="30" y="30" width="360" height="190" rx="10" fill="#11202e" stroke="var(--accent)"/>
+  <text class="lbl-b" x="50" y="56" fill="#9ec5ff">GUI thread</text>
+  <rect x="55" y="75" width="140" height="50" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
+  <text class="lbl" x="125" y="105" text-anchor="middle">WorkerThread</text>
+  <rect x="55" y="145" width="140" height="50" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
+  <text class="lbl" x="125" y="175" text-anchor="middle">Service / Views</text>
+
+  <rect x="430" y="30" width="360" height="190" rx="10" fill="#241f12" stroke="var(--amber)"/>
+  <text class="lbl-b" x="450" y="56" fill="#f3cd6b">worker thread</text>
+  <rect x="600" y="75" width="160" height="50" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
+  <text class="lbl" x="680" y="100" text-anchor="middle">PeriodicWorker</text>
+  <text class="lbl-sm" x="680" y="116" text-anchor="middle">QTimer.step()</text>
+  <rect x="600" y="145" width="160" height="50" rx="8" fill="var(--bg-soft)" stroke="var(--border)"/>
+  <text class="lbl" x="680" y="175" text-anchor="middle">driver I/O</text>
+
+  <g stroke="#6ea8ff" stroke-width="2" fill="none" marker-end="url(#a4)">
+    <line x1="195" y1="92" x2="598" y2="92"/>
+    <line x1="598" y1="170" x2="197" y2="170"/>
+  </g>
+  <text class="lbl-sm" x="400" y="84" text-anchor="middle" fill="#cdd5de">moveToThread / start()</text>
+  <text class="lbl-sm" x="400" y="162" text-anchor="middle" fill="#cdd5de">queued signals (readings, faults)</text>
+</svg>
+<figcaption>The worker lives on its own thread; results return as queued signals. The GUI thread
+never blocks on I/O.</figcaption>
+</div>
+
+<p><code>WorkerThread</code> owns the worker + thread pair and guarantees an orderly shutdown. The
+subtle part is stopping cleanly: a <code>QTimer</code> created on the worker thread must be stopped
+<em>on that same thread</em>, or Qt raises <code>QObject::killTimer: Timers cannot be stopped from
+another thread</code>. The fix is a blocking-queued call so the worker tears down its own
+thread-affine resources before the loop quits:</p>
+
+<pre><code><span class="k">def</span> <span class="f">stop</span>(self, *, wait_ms: int = 5000) -> <span class="k">None</span>:
+    <span class="k">if</span> <span class="k">not</span> self._thread.isRunning():
+        <span class="k">return</span>
+    <span class="c"># Run stop() ON the worker thread and block until it's done, so timers/</span>
+    <span class="c"># sockets are torn down on the correct thread before we quit the loop.</span>
+    <span class="k">if</span> hasattr(self._worker, <span class="s">"stop"</span>):
+        QMetaObject.invokeMethod(
+            self._worker, <span class="s">"stop"</span>, Qt.ConnectionType.BlockingQueuedConnection)
+    self._thread.quit()
+    <span class="k">if</span> <span class="k">not</span> self._thread.wait(wait_ms):
+        self._thread.terminate()      <span class="c"># last resort</span>
+        self._thread.wait()</code></pre>
+
+<div class="callout warn"><strong>Lesson baked into the template.</strong> Thread <em>affinity</em> is
+the No.1 source of hard crashes in Qt apps. The rule the code enforces: an object that owns a timer,
+socket, or file handle must create <em>and</em> destroy it on the same thread. <code>PeriodicWorker</code>
+creates its <code>QTimer</code> in <code>run()</code> and stops it in <code>stop()</code> — both on the
+worker thread.</div>
+
+<p>A failing poll is reported but does <em>not</em> stop the loop — transient device errors must not
+end polling:</p>
+<pre><code><span class="k">def</span> <span class="f">_tick</span>(self):
+    <span class="k">try</span>:
+        self.step()                  <span class="c"># your driver call; may raise DeviceError</span>
+    <span class="k">except</span> Exception <span class="k">as</span> exc:        <span class="c"># keep polling alive</span>
+        fault = report_fault(exc, source=self._name)
+        self.failed.emit(fault)</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="state">8. Connection state machine <span class="pill core">core</span></h2>
+<p>Every external connection moves through one explicit state machine, owned by the
+<code>Service</code> base class. The example <code>DeviceService</code> translates a run of poll
+failures into <em>degraded</em> and eventually <em>faulted</em>, and recovers automatically — the
+status indicator in the UI simply binds to these states.</p>
+
+<div class="figure">
+<svg viewBox="0 0 820 230" role="img" aria-label="Connection state machine">
+  <defs>
+    <marker id="a5" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#cdd5de"/>
+    </marker>
+  </defs>
+  <g>
+    <rect x="20"  y="90" width="120" height="50" rx="25" fill="var(--bg-soft)" stroke="#5b6675"/>
+    <text class="lbl" x="80" y="120" text-anchor="middle">DISCONNECTED</text>
+    <rect x="190" y="90" width="120" height="50" rx="25" fill="var(--bg-soft)" stroke="var(--amber)"/>
+    <text class="lbl" x="250" y="120" text-anchor="middle">CONNECTING</text>
+    <rect x="360" y="90" width="120" height="50" rx="25" fill="var(--bg-soft)" stroke="var(--green)"/>
+    <text class="lbl" x="420" y="120" text-anchor="middle">CONNECTED</text>
+    <rect x="530" y="30" width="120" height="50" rx="25" fill="var(--bg-soft)" stroke="var(--amber)"/>
+    <text class="lbl" x="590" y="60" text-anchor="middle">DEGRADED</text>
+    <rect x="530" y="150" width="120" height="50" rx="25" fill="var(--bg-soft)" stroke="var(--red)"/>
+    <text class="lbl" x="590" y="180" text-anchor="middle">FAULTED</text>
+  </g>
+  <g stroke="#cdd5de" stroke-width="1.8" fill="none" marker-end="url(#a5)">
+    <line x1="140" y1="115" x2="188" y2="115"/>
+    <line x1="310" y1="115" x2="358" y2="115"/>
+    <line x1="480" y1="105" x2="528" y2="70"/>      <!-- connected->degraded -->
+    <line x1="540" y1="80" x2="470" y2="112"/>      <!-- degraded->connected -->
+    <line x1="590" y1="80" x2="590" y2="148"/>      <!-- degraded->faulted -->
+    <path d="M535,170 C430,210 430,150 470,128"/>   <!-- faulted->connected recover -->
+  </g>
+  <text class="lbl-sm" x="505" y="78" fill="#f3cd6b">poll fails</text>
+  <text class="lbl-sm" x="470" y="92" fill="#8fe0a8">poll ok</text>
+  <text class="lbl-sm" x="600" y="120" fill="#ff9aa2">5 failures</text>
+  <text class="lbl-sm" x="430" y="205" fill="#8fe0a8">recovered</text>
+</svg>
+<figcaption>The service health model. UI status indicators bind directly to these states via the bus.</figcaption>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="model">9. Model &amp; signal bus <span class="pill core">core</span></h2>
+
+<h3>9.1 What a tag is</h3>
+<p>A <em>tag</em> is the atom of an HMI's data model: one named process value with its metadata. In
+SCADA/HMI terminology a tag is a tank level, a motor speed, a valve state — anything the system reads
+from or writes to the field. The template models it as a small dataclass that couples the
+<strong>value</strong> with the three things an operator actually needs alongside it:</p>
+<pre><code><span class="d">@dataclass</span>
+<span class="k">class</span> <span class="f">Tag</span>:
+    name: str
+    value: Any = <span class="k">None</span>
+    unit: str = <span class="s">""</span>
+    quality: Quality = Quality.UNKNOWN     <span class="c"># is this value trustworthy?</span>
+    timestamp: datetime = ...              <span class="c"># when was it last good?</span>
+    low_limit: float | <span class="k">None</span> = <span class="k">None</span>          <span class="c"># engineering limits → alarms</span>
+    high_limit: float | <span class="k">None</span> = <span class="k">None</span></code></pre>
+
+<p>Bundling value + quality + timestamp + limits is the whole point. A bare <code>float</code> cannot
+tell an operator the difference between <em>"the tank really is at 0%"</em> and <em>"we lost contact
+and 0 is just the last number we saw."</em> On a panel controlling real equipment, that distinction
+is a safety issue — so it is encoded in the model, not left to chance.</p>
+
+<h3>9.2 Quality — the most important field</h3>
+<p>Quality is what makes the store trustworthy. The UI styles a value differently depending on it,
+so stale or invalid data is never silently presented as live:</p>
+<table>
+  <tr><th>Quality</th><th>Meaning</th><th>Typical UI treatment</th></tr>
+  <tr><td><code>GOOD</code></td><td>Fresh, trustworthy reading.</td><td>Show the value normally.</td></tr>
+  <tr><td><code>STALE</code></td><td>Connection lost; this is the last known value.</td><td>Grey it out / show its age.</td></tr>
+  <tr><td><code>BAD</code></td><td>Device reported the value as invalid.</td><td>Fault styling; don't trust it.</td></tr>
+  <tr><td><code>UNKNOWN</code></td><td>Never read yet (startup).</td><td>Show <code>—</code>.</td></tr>
+</table>
+<p>When the device service drops to <code>FAULTED</code> (§8), it calls one method to flag the whole
+dataset at once — the UI immediately reflects that data is no longer live, without waiting for
+individual updates that will never arrive:</p>
+<pre><code><span class="k">def</span> <span class="f">mark_stale</span>(self):           <span class="c"># called by the service on disconnect</span>
+    <span class="k">for</span> tag <span class="k">in</span> self._tags.values():
+        tag.quality = Quality.STALE</code></pre>
+
+<h3>9.3 Single source of truth: one writer, many readers</h3>
+<p>The <code>TagStore</code> is an in-memory registry of current tag values, and it is the
+<strong>only</strong> place a value lives. Services write to it; everything else reads from it and
+subscribes to its change notifications. No widget ever talks to a device. This single-writer /
+many-reader shape is what keeps a large UI consistent — there is exactly one source of a value and
+exactly one way to learn it changed.</p>
+
+<div class="figure">
+<svg viewBox="0 0 820 270" role="img" aria-label="TagStore single-writer many-reader">
+  <defs>
+    <marker id="a9" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#6ea8ff"/>
+    </marker>
+    <marker id="a9g" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#8fe0a8"/>
+    </marker>
+  </defs>
+  <!-- writer -->
+  <rect x="20" y="105" width="150" height="60" rx="8" fill="var(--bg-soft)" stroke="var(--amber)"/>
+  <text class="lbl" x="95" y="130" text-anchor="middle">Service(s)</text>
+  <text class="lbl-sm" x="95" y="148" text-anchor="middle">the only writer</text>
+  <!-- store -->
+  <rect x="300" y="90" width="180" height="90" rx="10" fill="#11231a" stroke="var(--green)"/>
+  <text class="lbl-b" x="390" y="120" text-anchor="middle" fill="#8fe0a8">TagStore</text>
+  <text class="lbl-sm" x="390" y="142" text-anchor="middle">name → Tag</text>
+  <text class="lbl-sm" x="390" y="158" text-anchor="middle">single source of truth</text>
+  <!-- readers -->
+  <g>
+    <rect x="630" y="20"  width="170" height="42" rx="8" fill="var(--bg-soft)" stroke="var(--accent)"/>
+    <text class="lbl" x="715" y="46" text-anchor="middle">Dashboard</text>
+    <rect x="630" y="74"  width="170" height="42" rx="8" fill="var(--bg-soft)" stroke="var(--accent)"/>
+    <text class="lbl" x="715" y="100" text-anchor="middle">Control VM</text>
+    <rect x="630" y="128" width="170" height="42" rx="8" fill="var(--bg-soft)" stroke="var(--green)"/>
+    <text class="lbl" x="715" y="154" text-anchor="middle">AlarmManager</text>
+    <rect x="630" y="182" width="170" height="42" rx="8" fill="var(--bg-soft)" stroke="var(--accent)"/>
+    <text class="lbl" x="715" y="208" text-anchor="middle">StatusBar / others</text>
+  </g>
+  <!-- write arrow -->
+  <line x1="170" y1="135" x2="298" y2="135" stroke="#f3cd6b" stroke-width="2.5" fill="none" marker-end="url(#a9)"/>
+  <text class="lbl-sm" x="234" y="126" text-anchor="middle" fill="#f3cd6b">update()</text>
+  <!-- bus fan-out -->
+  <g stroke="#8fe0a8" stroke-width="1.8" fill="none" marker-end="url(#a9g)">
+    <line x1="480" y1="125" x2="628" y2="41"/>
+    <line x1="480" y1="130" x2="628" y2="95"/>
+    <line x1="480" y1="140" x2="628" y2="149"/>
+    <line x1="480" y1="150" x2="628" y2="203"/>
+  </g>
+  <text class="lbl-sm" x="540" y="245" text-anchor="middle" fill="#8fe0a8">bus().tagUpdated — every reader hears it</text>
+</svg>
+<figcaption>One writer feeds the store; the store fans every change out over the bus to any number of
+independent readers, none of which know about each other.</figcaption>
+</div>
+
+<h3>9.4 The update lifecycle</h3>
+<p><code>update()</code> is the one entry point for changing a value. It upserts the tag (auto-defining
+unknown ones so services can publish freely), stamps quality and time, and broadcasts the change:</p>
+<pre><code><span class="k">def</span> <span class="f">update</span>(self, name, value, *, quality=Quality.GOOD) -> Tag:
+    tag = self._tags.get(name) <span class="k">or</span> Tag(name=name)
+    tag.value, tag.quality, tag.timestamp = value, quality, datetime.now()
+    self._tags[name] = tag
+    bus().tagUpdated.emit(name, value)   <span class="c"># every reader hears it</span>
+    <span class="k">return</span> tag</code></pre>
+<p>Traced end to end, a single reading flows like this:</p>
+<pre><code>1. worker reads the device        <span class="c"># on the WORKER thread</span>
+2. emits reading(name, value)     <span class="c"># queued across the thread boundary</span>
+3. service slot → store.update()  <span class="c"># now on the GUI thread</span>
+4. store writes the Tag, quality=GOOD, timestamp=now
+5. store emits bus().tagUpdated   <span class="c"># GUI thread</span>
+6. Dashboard, Control VM, AlarmManager, … all react   <span class="c"># GUI thread</span></code></pre>
+
+<h3>9.5 Why it needs no locks</h3>
+<div class="callout good"><strong>Thread-safety by design, not by mutex.</strong> The store is plain
+Python with no locks — and that's correct, not a bug. The worker→service signal in step 2 is
+<em>queued</em>, so <code>update()</code> always runs on the GUI thread. With a single writer thread
+there is no race to guard. The thread boundary is crossed exactly once, by Qt, in a place that is
+safe by construction. If you ever need to write from several threads, keep funnelling through queued
+signals rather than reaching for a <code>QMutex</code> — it stays simpler and faster.</div>
+
+<h3>9.6 Scaling the store</h3>
+<p>A dict-backed store is ideal up to thousands of tags read by ordinary widgets. For very large
+tabular displays (e.g. a 10,000-row tag grid), back the store with a <code>QAbstractTableModel</code>
+so Qt's view classes can render and update only what's visible. The data-flow and bus pattern around
+it stay exactly the same — only the storage and the readers' binding change.</p>
+
+<h3>9.7 The signal bus</h3>
+<p>The <code>SignalBus</code> is a process-wide <code>QObject</code> singleton holding only genuinely
+cross-cutting events. Producers <code>emit</code>; consumers <code>connect</code>; neither knows the
+other exists.</p>
+<pre><code><span class="k">class</span> <span class="f">SignalBus</span>(QObject):
+    navigationRequested   = pyqtSignal(str)            <span class="c"># switch page by key</span>
+    connectionStateChanged = pyqtSignal(str, object)    <span class="c"># (service, state)</span>
+    tagUpdated            = pyqtSignal(str, object)     <span class="c"># (tag, value)</span>
+    alarmRaised           = pyqtSignal(object)
+    alarmCleared          = pyqtSignal(object)</code></pre>
+
+<div class="callout"><strong>Discipline note.</strong> The bus is for cross-cutting events only.
+Parent-child or single-screen communication should use direct signals — overusing a global bus
+makes flow as hard to trace as global variables.</div>
+
+<!-- ============================================================ -->
+<h2 id="alarms">10. Alarm engine <span class="pill core">core</span></h2>
+<p>Alarms are first-class in HMI: they drive operator attention and event logs. The
+<code>AlarmManager</code> subscribes to <code>tagUpdated</code>, compares values against the
+high/low limits declared on each tag, and emits <code>alarmRaised</code> / <code>alarmCleared</code>
+— latching until the value returns in range. The alarms page and status bar just listen.</p>
+<pre><code><span class="k">def</span> <span class="f">_evaluate</span>(self, name, value, alarm_type, limit):
+    <span class="k">if</span> limit <span class="k">is</span> <span class="k">None</span>: <span class="k">return</span>
+    in_alarm = value &gt; limit <span class="k">if</span> alarm_type <span class="k">is</span> AlarmType.HIGH <span class="k">else</span> value &lt; limit
+    key = <span class="s">f"{name}:{alarm_type.value}"</span>
+    <span class="k">if</span> in_alarm <span class="k">and</span> key <span class="k">not</span> <span class="k">in</span> self._active:
+        self._active[key] = alarm = Alarm(name, alarm_type, limit, value)
+        bus().alarmRaised.emit(alarm)
+    <span class="k">elif</span> <span class="k">not</span> in_alarm <span class="k">and</span> key <span class="k">in</span> self._active:
+        bus().alarmCleared.emit(self._active.pop(key))</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="views">11. Views &amp; navigation</h2>
+<p>The <code>MainWindow</code> is a shell — side-nav + a <code>Navigator</code> (a router over
+<code>QStackedWidget</code>) + a status bar. It owns no business logic. Pages subclass
+<code>BasePage</code>, which gives them <code>on_show</code> / <code>on_hide</code> lifecycle hooks so
+expensive work (chart animations, fast polling) only runs while a page is visible — important on
+constrained HMI hardware.</p>
+<p>Navigation is decoupled: anything can request a screen change by emitting on the bus, so an alarm
+banner can jump to the Alarms page without holding a reference to it:</p>
+<pre><code>bus().navigationRequested.emit(<span class="s">"alarms"</span>)   <span class="c"># from anywhere; Navigator handles it</span></code></pre>
+
+<!-- ============================================================ -->
+<h2 id="mvvm">12. Optional MVVM <span class="pill opt">opt-in</span></h2>
+<p>The template is <strong>not</strong> MVVM by default. Most HMI screens are thin read-outs with no
+logic worth isolating, so they bind to the model directly. But screens with real presentation logic
+— commands, validation, preconditions, derived state — benefit from a <em>ViewModel</em> that holds
+that logic out of the widget so it can be unit-tested without any UI.</p>
+
+<table>
+  <tr><th>Role</th><th>Responsibility</th><th>Holds a reference to…</th></tr>
+  <tr><td><strong>Model</strong></td><td>data + domain rules (TagStore, services)</td><td>nothing above it</td></tr>
+  <tr><td><strong>ViewModel</strong></td><td>presentation logic: bindable state + commands</td><td>the model</td></tr>
+  <tr><td><strong>View</strong></td><td>render VM state, forward clicks; UI concerns only</td><td>its ViewModel</td></tr>
+</table>
+
+<p>The example is a pump-control screen. The View clicks call commands; the VM checks preconditions
+and either acts or rejects with a reason. Crucially, the VM holds <strong>no reference to the
+view</strong>.</p>
+
+<div class="figure">
+<svg viewBox="0 0 820 300" role="img" aria-label="MVVM command sequence">
+  <defs>
+    <marker id="a6" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#6ea8ff"/>
+    </marker>
+  </defs>
+  <!-- lifelines -->
+  <text class="lbl-b" x="110" y="30" text-anchor="middle" fill="#9ec5ff">View (ControlPage)</text>
+  <text class="lbl-b" x="410" y="30" text-anchor="middle" fill="#f3cd6b">ViewModel</text>
+  <text class="lbl-b" x="710" y="30" text-anchor="middle" fill="#8fe0a8">Model</text>
+  <line x1="110" y1="40" x2="110" y2="280" stroke="var(--border)"/>
+  <line x1="410" y1="40" x2="410" y2="280" stroke="var(--border)"/>
+  <line x1="710" y1="40" x2="710" y2="280" stroke="var(--border)"/>
+  <g stroke="#6ea8ff" stroke-width="1.8" fill="none" marker-end="url(#a6)">
+    <line x1="112" y1="70"  x2="408" y2="70"/>
+    <line x1="408" y1="120" x2="712" y2="120"/>
+    <line x1="710" y1="160" x2="412" y2="160"/>
+    <line x1="408" y1="210" x2="112" y2="210"/>
+    <line x1="408" y1="250" x2="112" y2="250"/>
+  </g>
+  <text class="lbl-sm" x="260" y="62"  text-anchor="middle">confirm dialog → vm.start()</text>
+  <text class="lbl-sm" x="560" y="112" text-anchor="middle">read interlock tag + state</text>
+  <text class="lbl-sm" x="560" y="152" text-anchor="middle">value, quality, limit</text>
+  <text class="lbl-sm" x="260" y="202" text-anchor="middle" fill="#8fe0a8">accepted → runningChanged ↦ bind()</text>
+  <text class="lbl-sm" x="260" y="242" text-anchor="middle" fill="#ff9aa2">rejected(reason) → warning box</text>
+</svg>
+<figcaption>Command flow: the View asks, the VM decides (against the model), the View renders the
+result. All decision logic is in the VM — and therefore testable headless.</figcaption>
+</div>
+
+<p>Bindable state is a <code>pyqtProperty</code> with a notify signal; a command is a
+<code>pyqtSlot</code> that validates before acting:</p>
+<pre><code><span class="d">@pyqtProperty(bool, notify=canStartChanged)</span>
+<span class="k">def</span> <span class="f">can_start</span>(self) -> bool:
+    <span class="k">return</span> self._check_preconditions()[0]
+
+<span class="d">@pyqtSlot()</span>
+<span class="k">def</span> <span class="f">start</span>(self) -> <span class="k">None</span>:
+    ok, reason = self._check_preconditions()      <span class="c"># device connected? value fresh?</span>
+    <span class="k">if</span> <span class="k">not</span> ok:                                   <span class="c"># tank below high limit?</span>
+        self.commandRejected.emit(reason); <span class="k">return</span>
+    self._running = <span class="k">True</span>                          <span class="c"># a real impl writes to the device</span>
+    self._emit_all()
+    self.commandAccepted.emit(<span class="s">"Pump started"</span>)</code></pre>
+
+<p>Widget MVVM's one real cost is manual binding (PyQt has no declarative binding like QML). The
+<code>bind()</code> helper reduces it to one line per field:</p>
+<pre><code>bind(vm.statusChanged,   <span class="k">lambda</span>: vm.status_text, label.setText)
+bind(vm.canStartChanged, <span class="k">lambda</span>: vm.can_start,   start_button.setEnabled)</code></pre>
+
+<div class="callout good"><strong>The payoff, verified.</strong> Because all the rules live in the VM,
+<code>tests/test_viewmodel.py</code> exercises "blocked when disconnected", "refuses above high
+limit", "starts when ready", etc. — with <em>no widget instantiated</em>. That testability is the
+entire reason to add a ViewModel.</div>
+
+<p><strong>It's opt-in.</strong> The Control page is registered only when <code>enable_control_demo</code>
+is true. Set it false — or delete <code>views/viewmodels/</code> and <code>control_page.py</code> — to
+drop MVVM entirely. MVVM and the bus are complementary: the bus is <em>how</em> the VM receives model
+updates.</p>
+
+<!-- ============================================================ -->
+<h2 id="startup">13. Startup sequence</h2>
+<p>Order is deliberate: each step makes the next observable or safe. <code>app.py</code> is the only
+place that knows the concrete object graph.</p>
+<pre><code><span class="c"># hmi/app.py — main()</span>
+1. configure_logging()       <span class="c"># so everything after is recorded</span>
+2. install_fault_hooks()     <span class="c"># so any later failure is captured, not fatal</span>
+3. AppConfig.load()          <span class="c"># defaults &lt; JSON &lt; env, then validated</span>
+4. TagStore + define tags    <span class="c"># the data model & alarm limits</span>
+5. DeviceService, AlarmMgr   <span class="c"># background I/O & rules (not started yet)</span>
+6. MainWindow + pages        <span class="c"># UI built, indicators wired to the bus</span>
+7. window.show()
+8. device.start()            <span class="c"># I/O begins only once the UI can receive signals</span>
+9. app.exec()                <span class="c"># event loop; device.stop() in finally</span></code></pre>
+
+<!-- ============================================================ -->
+<h2 id="rationale">14. Rationale at a glance</h2>
+<table>
+  <tr><th>Decision</th><th>Why</th><th>Alternative rejected</th></tr>
+  <tr>
+    <td>Global fault hooks + <code>FaultBus</code></td>
+    <td>An HMI must survive a bad slot/thread; faults must reach a log and the operator.</td>
+    <td>Let exceptions abort (default) — unacceptable on a 24/7 panel.</td>
+  </tr>
+  <tr>
+    <td><code>@safe_slot</code> on every slot</td>
+    <td>The slot boundary is where exceptions become fatal; guard them there.</td>
+    <td>Hope no slot ever raises.</td>
+  </tr>
+  <tr>
+    <td>Worker-object on a <code>QThread</code></td>
+    <td>Qt-recommended; keeps I/O off the GUI thread; clean signal interface.</td>
+    <td>Subclass <code>QThread</code> — easy to get affinity wrong.</td>
+  </tr>
+  <tr>
+    <td>Blocking-queued <code>stop()</code></td>
+    <td>Thread-affine resources (timers) must die on their own thread.</td>
+    <td>Quit the loop directly — causes <code>killTimer</code> crashes.</td>
+  </tr>
+  <tr>
+    <td>Single <code>SignalBus</code></td>
+    <td>Decouples layers; new screens subscribe without touching producers.</td>
+    <td>Direct references everywhere — import spaghetti at scale.</td>
+  </tr>
+  <tr>
+    <td><code>TagStore</code> as single source of truth</td>
+    <td>One writer, many readers → a consistent UI; views never touch devices.</td>
+    <td>Each widget polls the device — races and frozen UI.</td>
+  </tr>
+  <tr>
+    <td>Explicit connection state machine</td>
+    <td>Operators need to know <em>connected vs degraded vs faulted</em>, with auto-recovery.</td>
+    <td>A boolean "connected" flag — hides degradation.</td>
+  </tr>
+  <tr>
+    <td>MVVM <em>optional</em>, per-screen</td>
+    <td>VMs pay off only where there's logic to test; read-outs don't need the boilerplate.</td>
+    <td>MVVM everywhere (empty VMs) or never (untestable logic in widgets).</td>
+  </tr>
+  <tr>
+    <td>Typed <code>AppConfig</code> (defaults &lt; JSON &lt; env)</td>
+    <td>One image, many panels; per-station overrides without code changes.</td>
+    <td>Constants in code, or untyped globals.</td>
+  </tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="extend">15. How to extend</h2>
+<table>
+  <tr><th>Goal</th><th>Do this</th></tr>
+  <tr><td>Add a screen</td><td>Subclass <code>BasePage</code>, build UI in <code>build_ui()</code>, register with <code>window.add_page(...)</code> in <code>app.py</code>.</td></tr>
+  <tr><td>Add a real device</td><td>Subclass <code>Service</code> + a <code>PeriodicWorker</code>; in <code>step()</code> call your driver and raise <code>DeviceError</code> on failure. State machine &amp; threading come free.</td></tr>
+  <tr><td>Add an alarm</td><td>Give a <code>Tag</code> a <code>high_limit</code>/<code>low_limit</code> when you define it. The engine does the rest.</td></tr>
+  <tr><td>Add a control screen</td><td>Write a <code>ViewModel</code> with <code>pyqtProperty</code> state + <code>pyqtSlot</code> commands; bind a thin View to it; unit-test the VM.</td></tr>
+  <tr><td>React to an app-wide event</td><td>Connect to a signal on <code>bus()</code> — don't thread references through constructors.</td></tr>
+  <tr><td>Write a crash-proof slot</td><td>Decorate it with <code>@safe_slot</code> (and <code>@pyqtSlot</code> outermost if you want the typed slot).</td></tr>
+</table>
+
+<footer>
+  HMI Template architecture guide · generated for the <code>hmi</code> PyQt6 project ·
+  see <code>README.md</code> for quick-start and <code>src/hmi/</code> for the annotated source.
+</footer>
+
+</main>
+</div>
+</body>
+</html>

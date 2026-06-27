@@ -1,0 +1,30 @@
+[project]
+name = "hmi"
+version = "0.1.0"
+description = "A robust, scalable PyQt6 template for HMI-style applications"
+readme = "README.md"
+authors = [
+    { name = "Noah Ridge", email = "noah.c.ridge@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pyqt6>=6.11.0",
+]
+
+[project.scripts]
+hmi = "hmi:main"
+
+[build-system]
+requires = ["uv_build>=0.9.2,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-qt>=4.5.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+qt_api = "pyqt6"
+addopts = "-q"
